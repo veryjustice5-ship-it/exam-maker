@@ -1,0 +1,6 @@
+{
+  "name": "ExamCraft - ClassMarker Online Exams & PDF Study Guide",
+  "description": "Professional online exam platform with automated marking, PDF reference guides, and detailed ClassMarker-style student analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
