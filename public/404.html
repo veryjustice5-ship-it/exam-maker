@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ExamCraft - Redirecting...</title>
+    <script>
+      // Single Page Application redirect for GitHub Pages
+      // Stores current path and reloads at root with redirect query
+      var segmentCount = 1;
+      var location = window.location;
+      var path = location.pathname;
+      // If deployed at /<repo-name>/, preserve repo path
+      var parts = path.split('/').filter(Boolean);
+      var basePath = parts.length > 0 ? '/' + parts[0] + '/' : '/';
+      
+      // Redirect to the base index.html
+      location.replace(
+        location.protocol + '//' + location.hostname + (location.port ? ':' + location.port : '') +
+        basePath + '?redirect=' + encodeURIComponent(path.slice(basePath.length)) + location.search + location.hash
+      );
+    </script>
+  </head>
+  <body>
+    <p style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+      Loading ExamCraft... If not redirected automatically, <a href="./">click here</a>.
+    </p>
+  </body>
+</html>
