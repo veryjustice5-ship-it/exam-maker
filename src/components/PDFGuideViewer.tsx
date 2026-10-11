@@ -301,7 +301,7 @@ export const PDFGuideViewer: React.FC<PDFGuideViewerProps> = ({
 
               {/* PDF Document Footer */}
               <div className="mt-8 pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-                <span>ClassMarker Authorized Study Material</span>
+                <span>ELGI Authorized Reference Study Material</span>
                 <span>Ref: {guide.fileName}</span>
               </div>
             </div>

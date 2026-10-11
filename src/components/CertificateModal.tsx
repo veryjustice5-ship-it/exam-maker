@@ -57,15 +57,19 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           <div className="relative z-10 space-y-6">
             {/* Header */}
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-indigo-900 px-3 py-1 rounded-full bg-indigo-100/70 border border-indigo-200">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                Verified Academic Assessment
+              <div className="flex justify-center mb-2">
+                <div className="w-16 h-16">
+                  <img src="./elgi-logo.svg" alt="e-Learning GROUP INSTITUTE" className="w-full h-full object-contain mx-auto" />
+                </div>
               </div>
-              <h1 className="text-3xl sm:text-5xl font-black font-serif text-slate-900 mt-4 tracking-tight">
+              <div className="text-sm font-bold uppercase tracking-wider text-orange-600 font-sans">
+                e-Learning GROUP INSTITUTE
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black font-serif text-slate-900 mt-2 tracking-tight">
                 Certificate of Achievement
               </h1>
               <p className="text-xs uppercase tracking-widest font-mono text-slate-500 mt-1">
-                ClassMarker Standard Online Certification
+                ELGI EXAMS PORTAL &bull; Official Examination Board
               </p>
             </div>
 
@@ -108,9 +112,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
             <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs font-serif">
               <div className="text-left">
                 <div className="border-b border-slate-400 pb-1 font-mono text-slate-800 font-semibold">
-                  ExamCraft Academic Board
+                  ELGI Academic &amp; Examination Council
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">Authorized Automated Examiner</div>
+                <div className="text-[11px] text-slate-500 mt-1">Authorized Automated Examiner &bull; e-Learning GROUP INSTITUTE</div>
                 <div className="text-[10px] text-slate-400 font-mono">Date Issued: {formattedDate}</div>
               </div>
 

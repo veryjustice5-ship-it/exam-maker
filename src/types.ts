@@ -78,6 +78,14 @@ export interface Student {
   avatar: string;
 }
 
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin';
+  title: string;
+}
+
 export interface QuestionScoreDetail {
   questionId: string;
   earned: number;

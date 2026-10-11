@@ -1,6 +1,6 @@
 {
-  "name": "ExamCraft - ClassMarker Online Exams & PDF Study Guide",
-  "description": "Professional online exam platform with automated marking, PDF reference guides, and detailed ClassMarker-style student analytics.",
+  "name": "ELGI EXAMS PORTAL",
+  "description": "e-Learning GROUP INSTITUTE - Official Online Examination Portal with side-by-side PDF study guides, timed tests, and administrator auto-grading analytics.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

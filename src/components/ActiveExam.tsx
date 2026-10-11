@@ -174,13 +174,13 @@ export const ActiveExam: React.FC<ActiveExamProps> = ({
       <div className="bg-slate-900 text-white px-4 py-2.5 sm:px-6 flex items-center justify-between gap-4 border-b border-slate-800 shrink-0">
         {/* Left: Exam Info */}
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/40">
             {exam.code}
           </span>
           <div className="truncate">
             <h2 className="text-sm font-bold truncate text-slate-100">{exam.title}</h2>
             <div className="text-[11px] text-slate-400">
-              Candidate: <span className="text-slate-200 font-semibold">{currentStudent.name}</span> &bull; Auto-Marking Enabled
+              Candidate: <span className="text-slate-200 font-semibold">{currentStudent.name}</span> &bull; ELGI Timed Assessment
             </div>
           </div>
         </div>
@@ -202,13 +202,13 @@ export const ActiveExam: React.FC<ActiveExamProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIsGuideOpen(!isGuideOpen)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               isGuideOpen
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                ? 'bg-orange-600 text-white shadow-sm'
+                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700'
             }`}
           >
-            <FileText className="w-3.5 h-3.5 text-rose-400" />
+            <FileText className="w-3.5 h-3.5 text-orange-300" />
             <span className="hidden sm:inline">Study Guide</span>
             <span className="text-[10px] bg-slate-900/60 px-1 rounded text-slate-300">
               {isGuideOpen ? 'Hide' : 'Show'}
