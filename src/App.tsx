@@ -153,6 +153,10 @@ export default function App() {
     setExams(prev => prev.filter(e => e.id !== examId));
   };
 
+  const handleUpdateAttempt = (updatedAttempt: ExamAttempt) => {
+    setAttempts(prev => prev.map(a => a.id === updatedAttempt.id ? updatedAttempt : a));
+  };
+
   const handleAdminLogin = (admin: AdminUser) => {
     setCurrentAdmin(admin);
     setShowAdminLoginModal(false);
@@ -312,6 +316,7 @@ export default function App() {
               onUpdateExam={handleUpdateExam}
               onDeleteExam={handleDeleteExam}
               onResetData={handleResetData}
+              onUpdateAttempt={handleUpdateAttempt}
             />
           ) : (
             <div className="max-w-md mx-auto text-center py-16 space-y-4">

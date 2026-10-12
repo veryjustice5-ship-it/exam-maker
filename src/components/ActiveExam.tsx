@@ -13,7 +13,8 @@ import {
   Sparkles,
   Send,
   Eye,
-  Maximize2
+  Maximize2,
+  BookOpen
 } from 'lucide-react';
 import { Exam, Student, ExamAttempt } from '../types';
 import { PDFGuideViewer } from './PDFGuideViewer';
@@ -397,7 +398,7 @@ export const ActiveExam: React.FC<ActiveExamProps> = ({
               {/* 5. Short Answer / Explanation */}
               {currentQuestion.type === 'short_answer' && (
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-600">
+                  <label className="block text-xs font-semibold text-slate-700">
                     Provide your written explanation (auto-marked against key concepts and rubrics):
                   </label>
                   <textarea
@@ -405,11 +406,93 @@ export const ActiveExam: React.FC<ActiveExamProps> = ({
                     value={answers[currentQuestion.id] || ''}
                     onChange={(e) => setAnswerForQuestion(currentQuestion.id, e.target.value)}
                     placeholder="Formulate your concise response referring to the study guide..."
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-4 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-sans"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-4 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-sans"
                   />
-                  <div className="flex justify-between items-center text-[11px] text-slate-400">
+                  <div className="flex justify-between items-center text-[11px] text-slate-500">
                     <span>Keyword &amp; conceptual criteria evaluated automatically on submit.</span>
                     <span>{(answers[currentQuestion.id] || '').length} characters</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 6. Theory / Essay Question (Subjective) */}
+              {(currentQuestion.type === 'essay_theory' || currentQuestion.type === 'case_study') && (
+                <div className="space-y-3.5">
+                  {/* Subjective Theory Guidance Banner */}
+                  <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-orange-900 uppercase tracking-wide flex items-center gap-1.5 text-[11px]">
+                        <BookOpen className="w-3.5 h-3.5 text-orange-600" />
+                        <span>Theory Marking Scheme &amp; Guidelines</span>
+                      </span>
+                      <span className="font-mono text-[11px] font-bold text-orange-700 bg-white px-2 py-0.5 rounded border border-orange-200">
+                        {currentQuestion.points} Marks Available
+                      </span>
+                    </div>
+
+                    {currentQuestion.rubricCriteria && currentQuestion.rubricCriteria.length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-orange-200/80">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase">Assessment Criteria:</span>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-slate-700">
+                          {currentQuestion.rubricCriteria.map((c, i) => (
+                            <li key={c.id || i} className="flex items-center gap-1.5 bg-white/80 px-2 py-1 rounded border border-orange-100">
+                              <span className="w-4 h-4 rounded-full bg-orange-100 text-orange-800 text-[9px] font-bold flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span className="truncate">{c.title} ({c.points} pts)</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                      <span>Minimum suggested length: <strong>{currentQuestion.minWords || 35} words</strong></span>
+                      <span className="text-orange-700 font-medium">You can refer to the study guide while writing.</span>
+                    </div>
+                  </div>
+
+                  {/* Essay / Theory Writing Pad */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Write your theoretical solution / essay response below:
+                    </label>
+                    <textarea
+                      rows={10}
+                      value={answers[currentQuestion.id] || ''}
+                      onChange={(e) => setAnswerForQuestion(currentQuestion.id, e.target.value)}
+                      placeholder="Type your structured theoretical explanation, citing key terms, formulas, and concepts from the syllabus..."
+                      className="w-full bg-slate-50 border border-slate-300 rounded-2xl p-4 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-sans leading-relaxed shadow-inner"
+                    />
+
+                    {/* Word counter & Live Feedback */}
+                    {(() => {
+                      const text = answers[currentQuestion.id] || '';
+                      const words = text.trim().split(/\s+/).filter(Boolean).length;
+                      const min = currentQuestion.minWords || 35;
+                      const met = words >= min;
+
+                      return (
+                        <div className="flex items-center justify-between text-xs px-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-slate-600">
+                              Word Count: <strong className={met ? 'text-emerald-700 font-bold' : 'text-slate-800'}>{words}</strong> / {min} min
+                            </span>
+                            {words > 0 && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                met ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {met ? 'Length Met ✓' : `${min - words} words to target`}
+                              </span>
+                            )}
+                          </div>
+
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {text.length} characters
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

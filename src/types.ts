@@ -3,12 +3,22 @@ export type QuestionType =
   | 'multiple_choice' 
   | 'true_false' 
   | 'fill_blank' 
-  | 'short_answer';
+  | 'short_answer'
+  | 'essay_theory'
+  | 'case_study';
 
 export interface QuestionOption {
   id: string;
   text: string;
   isCorrect: boolean;
+}
+
+export interface RubricCriterion {
+  id: string;
+  title: string;
+  points: number;
+  keywords: string[];
+  description: string;
 }
 
 export interface Question {
@@ -18,8 +28,12 @@ export interface Question {
   options?: QuestionOption[];
   // For fill_blank and short_answer:
   acceptableAnswers?: string[];
-  // For short_answer keyword matching:
+  // For short_answer & theory keyword/rubric matching:
   requiredKeywords?: string[];
+  // For theory/essay questions:
+  modelAnswer?: string;
+  minWords?: number;
+  rubricCriteria?: RubricCriterion[];
   points: number;
   penalty?: number; // For negative marking if wrong
   category: string; // e.g. "Cellular Respiration", "Algorithms", "World War II"
@@ -97,6 +111,12 @@ export interface QuestionScoreDetail {
   feedback: string;
   category: string;
   timeSpentSeconds: number;
+  // Subjective theory evaluation details:
+  isSubjective?: boolean;
+  wordCount?: number;
+  rubricResults?: { criterion: string; maxPoints: number; earnedPoints: number; feedback: string }[];
+  manualScoreOverride?: number;
+  examinerRemarks?: string;
 }
 
 export interface CategoryScoreSummary {

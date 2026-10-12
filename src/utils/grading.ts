@@ -152,6 +152,101 @@ export function evaluateQuestion(
       }
       break;
     }
+
+    case 'essay_theory':
+    case 'case_study': {
+      const userText = typeof userAnswer === 'string' ? userAnswer : '';
+      const wordCount = userText.trim().split(/\s+/).filter(Boolean).length;
+      const minWords = q.minWords || 30;
+      correctAnswerSummary = q.modelAnswer || q.explanation || 'Refer to theoretical marking rubric';
+
+      if (!userText.trim()) {
+        earned = 0;
+        feedback = `Unanswered Theory Question. Model answer: "${correctAnswerSummary.slice(0, 150)}..."`;
+        return {
+          questionId: q.id,
+          earned: 0,
+          max: q.points,
+          isCorrect: false,
+          partialCredit: false,
+          userAnswer,
+          correctAnswerSummary,
+          feedback,
+          category: q.category,
+          timeSpentSeconds,
+          isSubjective: true,
+          wordCount: 0,
+        };
+      }
+
+      const lowerText = userText.toLowerCase();
+      const rubricResults: { criterion: string; maxPoints: number; earnedPoints: number; feedback: string }[] = [];
+      let totalRubricPointsEarned = 0;
+      let totalRubricPointsPossible = 0;
+
+      // 1. Evaluate specific rubric criteria if defined
+      if (q.rubricCriteria && q.rubricCriteria.length > 0) {
+        q.rubricCriteria.forEach(crit => {
+          totalRubricPointsPossible += crit.points;
+          const matched = crit.keywords.some(kw => lowerText.includes(kw.toLowerCase()));
+          const pts = matched ? crit.points : 0;
+          totalRubricPointsEarned += pts;
+          rubricResults.push({
+            criterion: crit.title,
+            maxPoints: crit.points,
+            earnedPoints: pts,
+            feedback: matched 
+              ? `Demonstrated theoretical comprehension of ${crit.title}.` 
+              : `Missing expected theoretical discussion of ${crit.title}.`,
+          });
+        });
+      }
+
+      // 2. Evaluate required general keywords
+      const keywords = q.requiredKeywords || [];
+      const matchedKeywords = keywords.filter(kw => lowerText.includes(kw.toLowerCase()));
+      const keywordRatio = keywords.length > 0 ? matchedKeywords.length / keywords.length : 1;
+
+      // Calculate score based on rubric or keyword ratio
+      let rawScore = 0;
+      if (totalRubricPointsPossible > 0) {
+        rawScore = (totalRubricPointsEarned / totalRubricPointsPossible) * q.points;
+      } else {
+        rawScore = keywordRatio * q.points;
+      }
+
+      // Length adjustment: if below minimum expected words, adjust slightly
+      if (wordCount < minWords) {
+        const lengthRatio = Math.max(0.4, wordCount / minWords);
+        rawScore = rawScore * lengthRatio;
+      }
+
+      earned = Math.min(q.points, Math.max(0, Math.round(rawScore * 10) / 10));
+      isCorrect = earned >= q.points * 0.85;
+      partialCredit = earned > 0 && earned < q.points;
+
+      feedback = `Theory Evaluation (${wordCount} words): ${
+        isCorrect ? 'Comprehensive theoretical response.' : 'Partial marks awarded based on rubric coverage.'
+      } Matched key theoretical concepts: ${matchedKeywords.length > 0 ? matchedKeywords.join(', ') : 'Basic substance'}.${
+        keywords.length > matchedKeywords.length ? ` Consider expanding on: ${keywords.filter(k => !matchedKeywords.includes(k)).join(', ')}.` : ''
+      }`;
+
+      return {
+        questionId: q.id,
+        earned,
+        max: q.points,
+        isCorrect,
+        partialCredit,
+        userAnswer,
+        correctAnswerSummary,
+        feedback,
+        category: q.category,
+        timeSpentSeconds,
+        isSubjective: true,
+        wordCount,
+        rubricResults,
+      };
+    }
   }
 
   return {
