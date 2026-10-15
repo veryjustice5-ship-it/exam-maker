@@ -216,119 +216,149 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>Student Login</span>
               </button>
             ) : (
-              /* Authenticated Student Profile & Switcher */
-              <div className="relative">
-                <button
-                  onClick={() => setShowStudentMenu(!showStudentMenu)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-700 text-xs text-left transition-colors cursor-pointer"
-                >
-                  <img
-                    src={currentStudent.avatar}
-                    alt={currentStudent.name}
-                    className="w-6 h-6 rounded-full object-cover ring-1 ring-orange-500"
-                  />
-                  <div className="hidden sm:block">
-                    <div className="font-semibold text-slate-200 leading-tight">
-                      {currentStudent.name}
-                    </div>
-                    <div className="text-[10px] text-orange-400 font-mono leading-tight">
-                      {currentStudent.studentNumber}
-                    </div>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
-                </button>
-
-                {/* Student Dropdown Menu */}
-                {showStudentMenu && (
-                  <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
-                    <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex justify-between items-center">
-                      <span>Logged-in Student</span>
-                      <button
-                        onClick={() => {
-                          setShowStudentMenu(false);
-                          onOpenStudentLogin();
-                        }}
-                        className="text-orange-400 hover:text-orange-300 flex items-center gap-1 text-[11px]"
-                      >
-                        <User className="w-3 h-3" /> Switch ID
-                      </button>
-                    </div>
-
-                    <div className="p-3 border-b border-slate-800 bg-slate-950/40 flex items-start justify-between">
-                      <div className="min-w-0 pr-2">
-                        <p className="text-xs font-bold text-white truncate">{currentStudent.name}</p>
-                        <p className="text-[10px] font-mono text-orange-400 mt-0.5">ID: {currentStudent.studentNumber}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{currentStudent.email}</p>
+              /* Authenticated Student Badge */
+              <div className="flex items-center gap-1.5">
+                {/* Regular Student View: Read-only badge and direct Sign Out - NO access to student dropdown menu */}
+                {!currentAdmin ? (
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs">
+                    <img
+                      src={currentStudent.avatar}
+                      alt={currentStudent.name}
+                      className="w-6 h-6 rounded-full object-cover ring-1 ring-orange-500"
+                    />
+                    <div className="hidden sm:block">
+                      <div className="font-semibold text-slate-200 leading-tight">
+                        {currentStudent.name}
                       </div>
-                      <button
-                        onClick={openEditProfile}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-orange-300 rounded-lg text-[10px] font-bold border border-slate-700 flex items-center gap-1 shrink-0"
-                        title="Edit My Profile & Password"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        <span>Edit</span>
-                      </button>
+                      <div className="text-[10px] text-orange-400 font-mono leading-tight">
+                        {currentStudent.studentNumber}
+                      </div>
                     </div>
+                    <button
+                      onClick={onStudentLogout}
+                      className="ml-1 p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition"
+                      title="Sign Out of Student Account"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  /* ONLY THE ADMIN HAS ACCESS TO THE STUDENT DROPDOWN MENU */
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowStudentMenu(!showStudentMenu)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-700 text-xs text-left transition-colors cursor-pointer"
+                      title="Admin: Switch Enrolled Student"
+                    >
+                      <img
+                        src={currentStudent.avatar}
+                        alt={currentStudent.name}
+                        className="w-6 h-6 rounded-full object-cover ring-1 ring-orange-500"
+                      />
+                      <div className="hidden sm:block">
+                        <div className="font-semibold text-slate-200 leading-tight">
+                          {currentStudent.name}
+                        </div>
+                        <div className="text-[10px] text-orange-400 font-mono leading-tight">
+                          {currentStudent.studentNumber}
+                        </div>
+                      </div>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
+                    </button>
 
-                    <div className="max-h-52 overflow-y-auto py-1">
-                      <div className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Enrolled Students:</div>
-                      {students.map((stu) => {
-                        const isSelected = stu.id === currentStudent.id;
-                        return (
+                    {/* Student Dropdown Menu: Accessible ONLY to Admin */}
+                    {showStudentMenu && (
+                      <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
+                        <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex justify-between items-center">
+                          <span className="text-orange-400 font-bold">Admin: Switch Student</span>
                           <button
-                            key={stu.id}
                             onClick={() => {
-                              onSelectStudent(stu);
                               setShowStudentMenu(false);
+                              onOpenStudentLogin();
                             }}
-                            className={`w-full px-3 py-2 text-left flex items-center justify-between text-xs hover:bg-slate-800 transition-colors ${
-                              isSelected ? 'bg-orange-950/40 text-orange-200' : 'text-slate-300'
-                            }`}
+                            className="text-orange-400 hover:text-orange-300 flex items-center gap-1 text-[11px]"
                           >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <img
-                                src={stu.avatar}
-                                alt={stu.name}
-                                className="w-5 h-5 rounded-full object-cover shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <div className="font-medium text-slate-200 truncate text-[11px]">
-                                  {stu.name}
-                                </div>
-                                <div className="text-[9px] text-slate-400 font-mono truncate">
-                                  {stu.studentNumber}
-                                </div>
-                              </div>
-                            </div>
-                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+                            <User className="w-3 h-3" /> Switch ID
                           </button>
-                        );
-                      })}
-                    </div>
+                        </div>
 
-                    <div className="p-2 border-t border-slate-800 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => {
-                          setShowStudentMenu(false);
-                          setShowAddModal(true);
-                        }}
-                        className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-semibold flex items-center justify-center gap-1"
-                      >
-                        <Plus className="w-3 h-3 text-orange-400" />
-                        <span>Add Student</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowStudentMenu(false);
-                          onStudentLogout();
-                        }}
-                        className="py-1.5 px-2.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-[11px] text-red-300 font-semibold flex items-center gap-1 border border-red-800/40"
-                        title="Sign Out of Student Account"
-                      >
-                        <LogOut className="w-3 h-3" />
-                        <span>Sign Out</span>
-                      </button>
-                    </div>
+                        <div className="p-3 border-b border-slate-800 bg-slate-950/40 flex items-start justify-between">
+                          <div className="min-w-0 pr-2">
+                            <p className="text-xs font-bold text-white truncate">{currentStudent.name}</p>
+                            <p className="text-[10px] font-mono text-orange-400 mt-0.5">ID: {currentStudent.studentNumber}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{currentStudent.email}</p>
+                          </div>
+                          <button
+                            onClick={openEditProfile}
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-orange-300 rounded-lg text-[10px] font-bold border border-slate-700 flex items-center gap-1 shrink-0"
+                            title="Edit Student Details"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
+                        </div>
+
+                        <div className="max-h-52 overflow-y-auto py-1">
+                          <div className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Enrolled Students:</div>
+                          {students.map((stu) => {
+                            const isSelected = stu.id === currentStudent.id;
+                            return (
+                              <button
+                                key={stu.id}
+                                onClick={() => {
+                                  onSelectStudent(stu);
+                                  setShowStudentMenu(false);
+                                }}
+                                className={`w-full px-3 py-2 text-left flex items-center justify-between text-xs hover:bg-slate-800 transition-colors ${
+                                  isSelected ? 'bg-orange-950/40 text-orange-200' : 'text-slate-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <img
+                                    src={stu.avatar}
+                                    alt={stu.name}
+                                    className="w-5 h-5 rounded-full object-cover shrink-0"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-slate-200 truncate text-[11px]">
+                                      {stu.name}
+                                    </div>
+                                    <div className="text-[9px] text-slate-400 font-mono truncate">
+                                      {stu.studentNumber}
+                                    </div>
+                                  </div>
+                                </div>
+                                {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="p-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              setShowStudentMenu(false);
+                              setShowAddModal(true);
+                            }}
+                            className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-semibold flex items-center justify-center gap-1"
+                          >
+                            <Plus className="w-3 h-3 text-orange-400" />
+                            <span>Add Student</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowStudentMenu(false);
+                              onStudentLogout();
+                            }}
+                            className="py-1.5 px-2.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-[11px] text-red-300 font-semibold flex items-center gap-1 border border-red-800/40"
+                            title="Sign Out of Student Account"
+                          >
+                            <LogOut className="w-3 h-3" />
+                            <span>Sign Out</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
