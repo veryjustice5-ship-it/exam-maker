@@ -12,7 +12,11 @@ import {
   ChevronDown,
   Plus,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  ExternalLink,
+  Edit3,
+  Key,
+  X
 } from 'lucide-react';
 import { Student, AdminUser } from '../types';
 import { ELGILogo } from './ELGILogo';
@@ -22,9 +26,12 @@ interface HeaderProps {
   activeTab: 'catalog' | 'exam' | 'analytics' | 'teacher';
   setActiveTab: (tab: 'catalog' | 'exam' | 'analytics' | 'teacher') => void;
   students: Student[];
-  currentStudent: Student;
+  currentStudent: Student | null;
+  onOpenStudentLogin: () => void;
+  onStudentLogout: () => void;
   onSelectStudent: (student: Student) => void;
   onAddCustomStudent: (name: string, email: string) => void;
+  onUpdateStudent?: (student: Student) => void;
   isExamInProgress: boolean;
   currentAdmin: AdminUser | null;
   onAdminLogin: (admin: AdminUser) => void;
@@ -36,8 +43,11 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   students,
   currentStudent,
+  onOpenStudentLogin,
+  onStudentLogout,
   onSelectStudent,
   onAddCustomStudent,
+  onUpdateStudent,
   isExamInProgress,
   currentAdmin,
   onAdminLogin,
@@ -45,10 +55,40 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showStudentMenu, setShowStudentMenu] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showDeployGuide, setShowDeployGuide] = useState(false);
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+
+  // Edit current student profile state
+  const [editProfileName, setEditProfileName] = useState('');
+  const [editProfileEmail, setEditProfileEmail] = useState('');
+  const [editProfilePassword, setEditProfilePassword] = useState('');
+
+  const openEditProfile = () => {
+    if (!currentStudent) return;
+    setEditProfileName(currentStudent.name);
+    setEditProfileEmail(currentStudent.email);
+    setEditProfilePassword(currentStudent.password || 'password123');
+    setShowEditProfileModal(true);
+    setShowStudentMenu(false);
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentStudent || !editProfileName.trim()) return;
+    const updated: Student = {
+      ...currentStudent,
+      name: editProfileName.trim(),
+      email: editProfileEmail.trim() || currentStudent.email,
+      password: editProfilePassword.trim() || 'password123',
+    };
+    if (onUpdateStudent) {
+      onUpdateStudent(updated);
+    }
+    setShowEditProfileModal(false);
+  };
 
   const handleCreateStudent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,16 +107,16 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-slate-950 border-b border-slate-800 text-slate-100 sticky top-0 z-40 shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo & Brand matching the uploaded image */}
+          {/* Logo & Brand featuring the White ELGI Logo */}
           <div className="flex items-center gap-6">
             <button 
               onClick={() => setActiveTab('catalog')}
               className="flex items-center gap-3 text-left focus:outline-none group cursor-pointer"
             >
-              <ELGILogo variant="icon" className="w-10 h-10 group-hover:scale-105 transition-transform" inverted />
+              <ELGILogo variant="icon" className="w-10 h-10 group-hover:scale-105 transition-transform" />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-base tracking-tight bg-gradient-to-r from-orange-400 via-amber-300 to-white bg-clip-text text-transparent">
+                  <span className="font-extrabold text-base tracking-tight text-white drop-shadow-[0_1px_3px_rgba(255,255,255,0.2)]">
                     ELGI EXAMS PORTAL
                   </span>
                   <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/40 font-mono">
@@ -84,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-400 font-medium tracking-wide">
-                  e-Learning GROUP INSTITUTE &bull; Automated Examinations
+                  e-Learning GROUP INSTITUTE &bull; 10 AI &amp; Automation Modules
                 </div>
               </div>
             </button>
@@ -100,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 <BookOpenCheck className="w-4 h-4 text-orange-400" />
-                <span>Exams Catalog</span>
+                <span>Courses &amp; Exams</span>
               </button>
 
               {isExamInProgress && (
@@ -113,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                 >
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                  <span>Exam In Progress</span>
+                  <span>Active Test</span>
                 </button>
               )}
 
@@ -164,22 +204,140 @@ export const Header: React.FC<HeaderProps> = ({
             </nav>
           </div>
 
-          {/* Right Section: Admin Status / Student Switcher / GH Pages */}
-          <div className="flex items-center gap-3">
-            {/* GitHub Pages Indicator */}
-            <button 
-              onClick={() => setShowDeployGuide(true)}
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-[11px] font-mono cursor-pointer transition-all shadow-xs"
-              title="Click for GitHub Pages Setup Guide"
-            >
-              <Globe className="w-3 h-3 text-emerald-400" />
-              <span>GH Pages Ready</span>
-            </button>
+          {/* Right Section: Student Portal Login & Admin Status */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Student Login Portal Button (When not logged in) */}
+            {!currentStudent ? (
+              <button
+                onClick={onOpenStudentLogin}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-600/30 transition-all cursor-pointer"
+              >
+                <GraduationCap className="w-4 h-4 text-amber-200" />
+                <span>Student Login</span>
+              </button>
+            ) : (
+              /* Authenticated Student Profile & Switcher */
+              <div className="relative">
+                <button
+                  onClick={() => setShowStudentMenu(!showStudentMenu)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-700 text-xs text-left transition-colors cursor-pointer"
+                >
+                  <img
+                    src={currentStudent.avatar}
+                    alt={currentStudent.name}
+                    className="w-6 h-6 rounded-full object-cover ring-1 ring-orange-500"
+                  />
+                  <div className="hidden sm:block">
+                    <div className="font-semibold text-slate-200 leading-tight">
+                      {currentStudent.name}
+                    </div>
+                    <div className="text-[10px] text-orange-400 font-mono leading-tight">
+                      {currentStudent.studentNumber}
+                    </div>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
+                </button>
 
-            {/* Admin Login / Logged In Badge */}
+                {/* Student Dropdown Menu */}
+                {showStudentMenu && (
+                  <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
+                    <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex justify-between items-center">
+                      <span>Logged-in Student</span>
+                      <button
+                        onClick={() => {
+                          setShowStudentMenu(false);
+                          onOpenStudentLogin();
+                        }}
+                        className="text-orange-400 hover:text-orange-300 flex items-center gap-1 text-[11px]"
+                      >
+                        <User className="w-3 h-3" /> Switch ID
+                      </button>
+                    </div>
+
+                    <div className="p-3 border-b border-slate-800 bg-slate-950/40 flex items-start justify-between">
+                      <div className="min-w-0 pr-2">
+                        <p className="text-xs font-bold text-white truncate">{currentStudent.name}</p>
+                        <p className="text-[10px] font-mono text-orange-400 mt-0.5">ID: {currentStudent.studentNumber}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{currentStudent.email}</p>
+                      </div>
+                      <button
+                        onClick={openEditProfile}
+                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-orange-300 rounded-lg text-[10px] font-bold border border-slate-700 flex items-center gap-1 shrink-0"
+                        title="Edit My Profile & Password"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+
+                    <div className="max-h-52 overflow-y-auto py-1">
+                      <div className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Enrolled Students:</div>
+                      {students.map((stu) => {
+                        const isSelected = stu.id === currentStudent.id;
+                        return (
+                          <button
+                            key={stu.id}
+                            onClick={() => {
+                              onSelectStudent(stu);
+                              setShowStudentMenu(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left flex items-center justify-between text-xs hover:bg-slate-800 transition-colors ${
+                              isSelected ? 'bg-orange-950/40 text-orange-200' : 'text-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={stu.avatar}
+                                alt={stu.name}
+                                className="w-5 h-5 rounded-full object-cover shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <div className="font-medium text-slate-200 truncate text-[11px]">
+                                  {stu.name}
+                                </div>
+                                <div className="text-[9px] text-slate-400 font-mono truncate">
+                                  {stu.studentNumber}
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="p-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => {
+                          setShowStudentMenu(false);
+                          setShowAddModal(true);
+                        }}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-semibold flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-3 h-3 text-orange-400" />
+                        <span>Add Student</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowStudentMenu(false);
+                          onStudentLogout();
+                        }}
+                        className="py-1.5 px-2.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-[11px] text-red-300 font-semibold flex items-center gap-1 border border-red-800/40"
+                        title="Sign Out of Student Account"
+                      >
+                        <LogOut className="w-3 h-3" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Admin Portal Login / Indicator */}
             {currentAdmin ? (
-              <div className="flex items-center gap-2 bg-orange-950/80 border border-orange-500/40 rounded-xl px-2.5 py-1 text-xs">
-                <div className="flex items-center gap-1.5 text-orange-300 font-bold">
+              <div className="flex items-center gap-1.5 bg-orange-950/80 border border-orange-500/40 rounded-xl px-2.5 py-1 text-xs">
+                <div className="flex items-center gap-1 text-orange-300 font-bold text-[11px]">
                   <ShieldCheck className="w-3.5 h-3.5 text-orange-400" />
                   <span className="hidden sm:inline">Admin: {currentAdmin.name}</span>
                   <span className="sm:hidden">Admin</span>
@@ -195,85 +353,14 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={() => setShowAdminLoginModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md shadow-orange-600/30 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                title="Admin portal with auto-grading results and exam question controls"
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Admin Login</span>
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Admin Login</span>
+                <span className="sm:hidden">Admin</span>
               </button>
             )}
-
-            {/* Active Student Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowStudentMenu(!showStudentMenu)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-700 text-xs text-left transition-colors cursor-pointer"
-              >
-                <img
-                  src={currentStudent.avatar}
-                  alt={currentStudent.name}
-                  className="w-7 h-7 rounded-full object-cover ring-1 ring-orange-500"
-                />
-                <div className="hidden sm:block">
-                  <div className="font-semibold text-slate-200 leading-tight">
-                    {currentStudent.name}
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono leading-tight">
-                    {currentStudent.studentNumber}
-                  </div>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
-              </button>
-
-              {/* Student Dropdown Menu */}
-              {showStudentMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-2 z-50">
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex justify-between items-center">
-                    <span>Active Student</span>
-                    <button
-                      onClick={() => setShowAddModal(true)}
-                      className="text-orange-400 hover:text-orange-300 flex items-center gap-1 text-[11px]"
-                    >
-                      <Plus className="w-3 h-3" /> New Student
-                    </button>
-                  </div>
-
-                  <div className="max-h-60 overflow-y-auto py-1">
-                    {students.map((stu) => {
-                      const isSelected = stu.id === currentStudent.id;
-                      return (
-                        <button
-                          key={stu.id}
-                          onClick={() => {
-                            onSelectStudent(stu);
-                            setShowStudentMenu(false);
-                          }}
-                          className={`w-full px-3 py-2 text-left flex items-center justify-between text-xs hover:bg-slate-800 transition-colors ${
-                            isSelected ? 'bg-orange-950/40 text-orange-200' : 'text-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <img
-                              src={stu.avatar}
-                              alt={stu.name}
-                              className="w-6 h-6 rounded-full object-cover shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="font-medium text-slate-200 truncate">
-                                {stu.name}
-                              </div>
-                              <div className="text-[10px] text-slate-400 font-mono truncate">
-                                {stu.studentNumber}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -286,7 +373,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <BookOpenCheck className="w-3.5 h-3.5" />
-            <span>Exams</span>
+            <span>Courses</span>
           </button>
           {isExamInProgress && (
             <button
@@ -334,123 +421,129 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       />
 
-      {/* GitHub Pages Deployment Guide Modal */}
-      {showDeployGuide && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl p-6 sm:p-8 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto space-y-5">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
-                  Fixed for GitHub Pages
-                </span>
-                <h3 className="text-xl font-bold text-white mt-1.5 flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-orange-400" />
-                  GitHub Pages Deployment Settings
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowDeployGuide(false)}
-                className="text-slate-400 hover:text-white p-1"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
-              <div className="p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-200 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <span>How White Screen was Prevented</span>
-                </div>
-                <p>
-                  1. <code className="bg-black/30 px-1 rounded">package-lock.json</code> was created to resolve the dependencies lock error.<br />
-                  2. <code className="bg-black/30 px-1 rounded">public/.nojekyll</code> disables Jekyll asset dropping.<br />
-                  3. Base URL in <code className="bg-black/30 px-1 rounded">vite.config.ts</code> automatically sets your repo path.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-sm text-white mb-2 text-orange-300">
-                  1-Click GitHub Actions Deployment
-                </h4>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
-                    <span>In your GitHub repository, go to <strong>Settings &rarr; Pages</strong>.</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
-                    <span>Under <strong>Build and deployment &rarr; Source</strong>, choose <strong>&quot;GitHub Actions&quot;</strong>.</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
-                    <span>The included <code className="text-orange-400 font-mono">.github/workflows/deploy.yml</code> automatically builds and deploys your site!</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-800">
-              <button
-                onClick={() => setShowDeployGuide(false)}
-                className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs"
-              >
-                Close Guide
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Custom Student Modal */}
+      {/* Quick Add Student Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl text-slate-100">
-            <h3 className="text-base font-bold text-white mb-2 flex items-center gap-2">
-              <User className="w-5 h-5 text-orange-400" />
-              Add Student Profile
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Enter your own name or student details to write exams on the ELGI Portal.
-            </p>
-            <form onSubmit={handleCreateStudent} className="space-y-3.5">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl text-slate-100 space-y-4">
+            <h3 className="font-bold text-base text-white">Enroll Candidate</h3>
+            <form onSubmit={handleCreateStudent} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Full Name *
-                </label>
+                <label className="text-xs text-slate-400">Candidate Full Name</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Alex Montgomery"
+                  placeholder="e.g. Jordan Smith"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-orange-500"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 mt-1"
+                  required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Email Address
-                </label>
+                <label className="text-xs text-slate-400">Email Address (Optional)</label>
                 <input
                   type="email"
-                  placeholder="e.g. alex@student.elgi.edu"
+                  placeholder="jordan.smith@student.elgi.edu"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-orange-500"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 mt-1"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-750 text-xs"
+                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold text-xs shadow"
+                  className="px-4 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs"
                 >
-                  Save &amp; Switch
+                  Enroll
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit My Profile Modal */}
+      {showEditProfileModal && currentStudent && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl text-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-orange-400" />
+                <h3 className="font-bold text-sm text-white">Edit My Student Profile</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditProfileModal(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-3.5">
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Student ID (Read Only)</label>
+                <input
+                  type="text"
+                  value={currentStudent.studentNumber}
+                  disabled
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 font-mono mt-1 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Full Legal Name</label>
+                <input
+                  type="text"
+                  value={editProfileName}
+                  onChange={(e) => setEditProfileName(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-orange-500 mt-1"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Institutional Email</label>
+                <input
+                  type="email"
+                  value={editProfileEmail}
+                  onChange={(e) => setEditProfileEmail(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-orange-500 mt-1 font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Portal Password</label>
+                <input
+                  type="text"
+                  value={editProfilePassword}
+                  onChange={(e) => setEditProfilePassword(e.target.value)}
+                  placeholder="Change password"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-orange-500 mt-1 font-mono"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/30"
+                >
+                  Save Profile Changes
                 </button>
               </div>
             </form>

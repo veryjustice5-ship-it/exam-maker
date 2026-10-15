@@ -20,13 +20,21 @@ import {
   Edit3,
   Check,
   Eye,
+  EyeOff,
   ShieldAlert,
   ArrowRight,
   Filter,
   CheckSquare,
   FileCheck,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Users,
+  Copy,
+  UserPlus,
+  Search,
+  Key,
+  LogIn,
+  GraduationCap
 } from 'lucide-react';
 import { Exam, Question, QuestionType, PDFGuide, ExamAttempt, Student, AdminUser } from '../types';
 import { ELGILogo } from './ELGILogo';
@@ -43,6 +51,12 @@ interface TeacherTestManagerProps {
   onResetData: () => void;
   onInspectAttempt?: (attempt: ExamAttempt) => void;
   onUpdateAttempt?: (updatedAttempt: ExamAttempt) => void;
+  onUpdateStudent?: (updatedStudent: Student) => void;
+  onAddStudent?: (newStudent: Student) => void;
+  onDeleteStudent?: (studentId: string) => void;
+  onBulkUpdateStudents?: (students: Student[]) => void;
+  onResetStudents?: () => void;
+  onSelectStudent?: (student: Student) => void;
 }
 
 export const TeacherTestManager: React.FC<TeacherTestManagerProps> = ({
@@ -56,10 +70,30 @@ export const TeacherTestManager: React.FC<TeacherTestManagerProps> = ({
   onResetData,
   onInspectAttempt,
   onUpdateAttempt,
+  onUpdateStudent,
+  onAddStudent,
+  onDeleteStudent,
+  onBulkUpdateStudents,
+  onResetStudents,
+  onSelectStudent,
 }) => {
-  const [activeTab, setActiveTab] = useState<'gradebook' | 'manage_exams' | 'create_exam'>('gradebook');
+  const [activeTab, setActiveTab] = useState<'students' | 'gradebook' | 'manage_exams' | 'create_exam'>('students');
   const [filterExamId, setFilterExamId] = useState<string>('all');
   const [searchStudent, setSearchStudent] = useState<string>('');
+
+  // Student roster state
+  const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState<boolean>(false);
+  const [newStudentName, setNewStudentName] = useState<string>('');
+  const [newStudentNumber, setNewStudentNumber] = useState<string>('');
+  const [newStudentEmail, setNewStudentEmail] = useState<string>('');
+  const [newStudentPassword, setNewStudentPassword] = useState<string>('password123');
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState<boolean>(false);
+  const [bulkStudentText, setBulkStudentText] = useState<string>('');
+  const [copiedNotice, setCopiedNotice] = useState<string>('');
+  const [studentNotice, setStudentNotice] = useState<string>('');
+  const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
 
   // Editing existing exam state
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
@@ -447,6 +481,142 @@ export const TeacherTestManager: React.FC<TeacherTestManagerProps> = ({
     setTimeout(() => setInspectorSaveMsg(''), 4000);
   };
 
+  // Student roster helpers & handlers
+  const filteredStudents = students.filter((s) => {
+    const q = studentSearchQuery.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.studentNumber.toLowerCase().includes(q) ||
+      s.email.toLowerCase().includes(q)
+    );
+  });
+
+  const handleOpenBulkEdit = () => {
+    setBulkStudentText(students.map(s => s.name).join('\n'));
+    setIsBulkEditOpen(true);
+  };
+
+  const handleApplyBulkRoster = () => {
+    const lines = bulkStudentText
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0);
+
+    if (lines.length === 0) {
+      alert('Please enter at least one candidate name.');
+      return;
+    }
+
+    const updated: Student[] = lines.map((name, index) => {
+      const existing = students.find(s => s.name.toLowerCase() === name.toLowerCase());
+      const seqNum = String(index + 1).padStart(3, '0');
+      const autoNumber = `ELGI-2026-${seqNum}`;
+      const cleanEmail = name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.') + '@student.elgi.edu';
+      
+      return {
+        id: existing ? existing.id : `stu_${Date.now()}_${index}`,
+        name: name,
+        email: existing ? existing.email : cleanEmail,
+        studentNumber: existing ? existing.studentNumber : autoNumber,
+        avatar: existing ? existing.avatar : `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80`,
+        password: existing?.password || 'password123',
+        registeredAt: existing?.registeredAt || new Date().toISOString(),
+      };
+    });
+
+    if (onBulkUpdateStudents) {
+      onBulkUpdateStudents(updated);
+    }
+    setIsBulkEditOpen(false);
+    setStudentNotice(`Successfully updated student roster with ${updated.length} candidates!`);
+    setTimeout(() => setStudentNotice(''), 4000);
+  };
+
+  const handleCopyAllCredentials = () => {
+    const header = [
+      '========================================================================',
+      '           ELGI ACADEMIC BOARD - OFFICIAL STUDENT COHORT CREDENTIALS     ',
+      '========================================================================',
+      '#   | STUDENT ID     | CANDIDATE NAME                 | PASSWORD     | INSTITUTIONAL EMAIL',
+      '----+----------------+--------------------------------+--------------+---------------------------------------',
+      ...students.map((s, i) => 
+        `${String(i + 1).padEnd(4)}| ${(s.studentNumber || '').padEnd(15)}| ${s.name.padEnd(31)}| ${(s.password || 'password123').padEnd(13)}| ${s.email}`
+      ),
+      '========================================================================',
+      'Portal URL: Official ELGI Examination Platform',
+      `Total Enrolled Candidates: ${students.length}`,
+    ].join('\n');
+
+    navigator.clipboard.writeText(header).then(() => {
+      setCopiedNotice(`Copied credentials for all ${students.length} students to clipboard!`);
+      setTimeout(() => setCopiedNotice(''), 3500);
+    }).catch(() => {
+      setCopiedNotice(`Copied credentials for ${students.length} students!`);
+      setTimeout(() => setCopiedNotice(''), 3500);
+    });
+  };
+
+  const handleSaveStudentEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent || !editingStudent.name.trim()) return;
+
+    if (onUpdateStudent) {
+      onUpdateStudent(editingStudent);
+    }
+    const savedName = editingStudent.name;
+    setEditingStudent(null);
+    setStudentNotice(`Updated details for candidate: ${savedName}`);
+    setTimeout(() => setStudentNotice(''), 4000);
+  };
+
+  const handleSaveNewStudent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStudentName.trim()) return;
+
+    const nextSeq = String(students.length + 1).padStart(3, '0');
+    const stuNumber = newStudentNumber.trim() || `ELGI-2026-${nextSeq}`;
+    const stuEmail = newStudentEmail.trim() || `${newStudentName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@student.elgi.edu`;
+    const stuPass = newStudentPassword.trim() || 'password123';
+
+    const newStu: Student = {
+      id: `stu_${Date.now()}`,
+      name: newStudentName.trim(),
+      email: stuEmail,
+      studentNumber: stuNumber,
+      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`,
+      password: stuPass,
+      registeredAt: new Date().toISOString(),
+    };
+
+    if (onAddStudent) {
+      onAddStudent(newStu);
+    }
+    setIsAddStudentOpen(false);
+    setNewStudentName('');
+    setNewStudentNumber('');
+    setNewStudentEmail('');
+    setNewStudentPassword('password123');
+    setStudentNotice(`Added candidate: ${newStu.name} (${newStu.studentNumber})`);
+    setTimeout(() => setStudentNotice(''), 4000);
+  };
+
+  const handleDeleteStudentClick = (student: Student) => {
+    if (window.confirm(`Are you sure you want to remove "${student.name}" (${student.studentNumber}) from the enrolled student roster?`)) {
+      if (onDeleteStudent) {
+        onDeleteStudent(student.id);
+      }
+      setStudentNotice(`Removed ${student.name} from roster.`);
+      setTimeout(() => setStudentNotice(''), 4000);
+    }
+  };
+
+  const togglePasswordVisibility = (studentId: string) => {
+    setShowPasswordMap(prev => ({
+      ...prev,
+      [studentId]: !prev[studentId]
+    }));
+  };
+
   // Filtered attempts for gradebook table
   const filteredAttempts = attempts.filter((att) => {
     const matchesExam = filterExamId === 'all' || att.examId === filterExamId;
@@ -486,6 +656,18 @@ export const TeacherTestManager: React.FC<TeacherTestManagerProps> = ({
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
+              onClick={() => setActiveTab('students')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'students'
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Students Roster ({students.length})</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('gradebook')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                 activeTab === 'gradebook'
@@ -523,6 +705,270 @@ export const TeacherTestManager: React.FC<TeacherTestManagerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* TAB 0: STUDENT COHORT ROSTER & CREDENTIALS MANAGEMENT */}
+      {activeTab === 'students' && (
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-sm space-y-6">
+          {/* Notifications */}
+          {studentNotice && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center justify-between gap-2 shadow-sm animate-fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>{studentNotice}</span>
+              </div>
+              <button onClick={() => setStudentNotice('')} className="text-emerald-700 hover:text-emerald-900">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {copiedNotice && (
+            <div className="p-4 rounded-2xl bg-blue-50 border border-blue-300 text-blue-800 text-xs font-bold flex items-center justify-between gap-2 shadow-sm animate-fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                <span>{copiedNotice}</span>
+              </div>
+              <button onClick={() => setCopiedNotice('')} className="text-blue-700 hover:text-blue-900">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Section Header & Main Action Toolbar */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Enrolled Students Directory &amp; Credentials
+                </h3>
+                <span className="text-xs bg-orange-100 text-orange-800 font-bold px-2.5 py-0.5 rounded-full border border-orange-200">
+                  {students.length} Official Enrolled
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                Manage candidate registrations, edit student numbers, update credentials, batch-import rosters, and launch student exam portal sessions.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAddStudentOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 flex items-center gap-1.5 transition"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add Student</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenBulkEdit}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition"
+                title="Paste or bulk edit all candidate names"
+              >
+                <Edit3 className="w-4 h-4 text-orange-400" />
+                <span>Bulk Edit / Paste Roster</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyAllCredentials}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 flex items-center gap-1.5 transition"
+                title="Copy all Student IDs and Passwords to clipboard"
+              >
+                <Copy className="w-4 h-4 text-slate-600" />
+                <span>Copy Credentials</span>
+              </button>
+
+              {onResetStudents && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Reset student roster to the official 27 candidates provided for this cohort?')) {
+                      onResetStudents();
+                      setStudentNotice('Student roster restored to official 27 candidates.');
+                      setTimeout(() => setStudentNotice(''), 4000);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold text-xs border border-slate-200 flex items-center gap-1.5 transition"
+                  title="Reset to official 27 students cohort"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">Reset Default 27</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search & Quick Stats Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <Search className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={studentSearchQuery}
+                onChange={e => setStudentSearchQuery(e.target.value)}
+                placeholder="Search candidates by name, Student ID (e.g. ELGI-2026-001), or email..."
+                className="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+              />
+              {studentSearchQuery && (
+                <button
+                  onClick={() => setStudentSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Total Enrolled</p>
+                <p className="text-base font-extrabold text-slate-900">{students.length} Candidates</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Default Portal Pass</p>
+                <p className="text-base font-mono font-bold text-orange-600">password123</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center font-bold">
+                <Key className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Student Table */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-xs">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 uppercase font-mono text-[10px] tracking-wider border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-3 text-center w-10">#</th>
+                  <th className="py-3 px-4">Candidate Full Name</th>
+                  <th className="py-3 px-4">Student ID</th>
+                  <th className="py-3 px-4">Institutional Email</th>
+                  <th className="py-3 px-4">Portal Password</th>
+                  <th className="py-3 px-4 text-center">Exams Taken</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center text-slate-400">
+                      No enrolled students found matching "{studentSearchQuery}".
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((s, idx) => {
+                    const studentAttempts = attempts.filter(a => a.studentId === s.id);
+                    const isPasswordShown = !!showPasswordMap[s.id];
+                    return (
+                      <tr key={s.id} className="hover:bg-orange-50/40 transition-colors">
+                        <td className="py-3 px-3 text-center font-mono text-slate-400 font-bold text-[11px]">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={s.avatar}
+                              alt={s.name}
+                              className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
+                            />
+                            <div>
+                              <p className="font-bold text-slate-900 hover:text-orange-600 cursor-pointer transition"
+                                 onClick={() => setEditingStudent(s)}
+                                 title="Click to edit candidate details"
+                              >
+                                {s.name}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
+                                Enrolled {s.registeredAt ? new Date(s.registeredAt).toLocaleDateString() : '2026-01-15'}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {s.studentNumber}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
+                          {s.email}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2 font-mono">
+                            <span className="text-slate-800 font-medium">
+                              {isPasswordShown ? (s.password || 'password123') : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility(s.id)}
+                              className="text-slate-400 hover:text-slate-600 p-1 rounded"
+                              title={isPasswordShown ? "Hide password" : "Show password"}
+                            >
+                              {isPasswordShown ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {studentAttempts.length > 0 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              {studentAttempts.length} {studentAttempts.length === 1 ? 'Exam' : 'Exams'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">None yet</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingStudent(s)}
+                              className="p-1.5 rounded-lg text-slate-600 hover:text-orange-600 hover:bg-orange-50 transition border border-transparent hover:border-orange-200"
+                              title="Edit Candidate Details"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            {onSelectStudent && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onSelectStudent(s);
+                                  setStudentNotice(`Switched active session to student: ${s.name} (${s.studentNumber})`);
+                                  setTimeout(() => setStudentNotice(''), 4000);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition border border-transparent hover:border-emerald-200"
+                                title="Log In / Test Portal as this student"
+                              >
+                                <LogIn className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStudentClick(s)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                              title="Remove Candidate"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: COHORT GRADEBOOK & CANDIDATE AUTO-EVALUATIONS */}
       {activeTab === 'gradebook' && (
@@ -1902,6 +2348,328 @@ export const TeacherTestManager: React.FC<TeacherTestManagerProps> = ({
                   <Save className="w-4 h-4" />
                   <span>Save Examiner Grade &amp; Remarks</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: EDIT INDIVIDUAL CANDIDATE */}
+      {editingStudent && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-slate-200">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Edit Candidate Profile</h3>
+                  <p className="text-xs text-slate-500">Update enrolled student identity &amp; portal login</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingStudent(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStudentEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Full Legal Name
+                </label>
+                <input
+                  type="text"
+                  value={editingStudent.name}
+                  onChange={e => setEditingStudent({ ...editingStudent, name: e.target.value })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Student ID Number (Login Username)
+                </label>
+                <input
+                  type="text"
+                  value={editingStudent.studentNumber}
+                  onChange={e => setEditingStudent({ ...editingStudent, studentNumber: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-slate-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Institutional Email
+                </label>
+                <input
+                  type="email"
+                  value={editingStudent.email}
+                  onChange={e => setEditingStudent({ ...editingStudent, email: e.target.value })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-slate-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Portal Password</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingStudent({ ...editingStudent, password: `ELGI-${Math.floor(1000 + Math.random() * 9000)}` })}
+                    className="text-[10px] text-orange-600 hover:text-orange-700 font-normal font-sans"
+                  >
+                    Generate Random
+                  </button>
+                </label>
+                <input
+                  type="text"
+                  value={editingStudent.password || 'password123'}
+                  onChange={e => setEditingStudent({ ...editingStudent, password: e.target.value })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono font-medium text-slate-900"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/30 flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Candidate Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ADD NEW CANDIDATE */}
+      {isAddStudentOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-slate-200">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Enroll New Candidate</h3>
+                  <p className="text-xs text-slate-500">Add an individual student to the official ELGI examination cohort</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddStudentOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewStudent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Full Legal Name
+                </label>
+                <input
+                  type="text"
+                  value={newStudentName}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setNewStudentName(val);
+                    if (!newStudentEmail && val.trim()) {
+                      setNewStudentEmail(`${val.toLowerCase().replace(/[^a-z0-9]/g, '.')}@student.elgi.edu`);
+                    }
+                  }}
+                  placeholder="e.g. Samuel K. Asante"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Student ID (Optional)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Auto: ELGI-2026-{String(students.length + 1).padStart(3, '0')}</span>
+                </label>
+                <input
+                  type="text"
+                  value={newStudentNumber}
+                  onChange={e => setNewStudentNumber(e.target.value.toUpperCase())}
+                  placeholder={`ELGI-2026-${String(students.length + 1).padStart(3, '0')}`}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Institutional Email
+                </label>
+                <input
+                  type="email"
+                  value={newStudentEmail}
+                  onChange={e => setNewStudentEmail(e.target.value)}
+                  placeholder="name@student.elgi.edu"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Initial Portal Password
+                </label>
+                <input
+                  type="text"
+                  value={newStudentPassword}
+                  onChange={e => setNewStudentPassword(e.target.value)}
+                  placeholder="password123"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-slate-900"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setIsAddStudentOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/30 flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Enroll Candidate</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: BULK EDIT / PASTE ROSTER */}
+      {isBulkEditOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-slate-200">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Bulk Edit / Import Student Roster</h3>
+                  <p className="text-xs text-slate-500">Paste or edit student candidate names line-by-line</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkEditOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                <p className="font-bold">Instructions:</p>
+                <p className="mt-0.5">
+                  Enter or paste student names (one candidate name per line). Each line creates or updates an enrolled student with an assigned sequential Student ID (e.g., <code className="font-mono font-bold">ELGI-2026-001</code>) and default password <code className="font-mono font-bold">password123</code>.
+                </p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Candidate Names (One Per Line)
+                  </label>
+                  <span className="text-xs font-mono font-bold text-orange-600">
+                    {bulkStudentText.split('\n').filter(l => l.trim().length > 0).length} Candidates Detected
+                  </span>
+                </div>
+                <textarea
+                  rows={12}
+                  value={bulkStudentText}
+                  onChange={e => setBulkStudentText(e.target.value)}
+                  placeholder="Wisdom Diaba&#10;Daniella Ewenam Agbemavor&#10;Ayornu Kefa&#10;..."
+                  className="w-full px-3.5 py-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono leading-relaxed text-slate-900"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const originalList = [
+                      'Wisdom Diaba',
+                      'Daniella Ewenam Agbemavor',
+                      'Ayornu Kefa',
+                      'Jessica Yayra Wowui',
+                      'Augustina Tetteh',
+                      'J.R Gabriel Mawuko',
+                      'Raymond Deku',
+                      'Hudu Sumaila',
+                      'Mathias Kelvin Dzamesi',
+                      'Philip Acquah',
+                      'Anastasia Aborhey',
+                      'Kingsley Otto',
+                      'Stephen Amoh',
+                      'Rahina Narteynorh',
+                      'Benjamin Dadzie',
+                      'Abdul Razak',
+                      'Emmanuel Addo Adjei',
+                      'Christabel Tetteh',
+                      'Very justice Essuman',
+                      'Philip Ampomah',
+                      'Emmanuel Mensah',
+                      'Rita kponyo',
+                      'Enoch Togoli',
+                      'Kenneth Avalon',
+                      'Anastasia Aborhey',
+                      'Isabella Ampah Mensah',
+                      'Patience Maya'
+                    ].join('\n');
+                    setBulkStudentText(originalList);
+                  }}
+                  className="text-xs text-orange-600 hover:text-orange-700 font-semibold"
+                >
+                  Load Official 27 Names
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkEditOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyBulkRoster}
+                    className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/30 flex items-center gap-1.5"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Apply &amp; Save Full Roster</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

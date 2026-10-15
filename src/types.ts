@@ -82,6 +82,7 @@ export interface Exam {
   shuffleOptions?: boolean;
   negativeMarking?: boolean;
   instructions: string[];
+  learningObjectives?: string[];
 }
 
 export interface Student {
@@ -90,6 +91,8 @@ export interface Student {
   email: string;
   studentNumber: string;
   avatar: string;
+  password?: string;
+  registeredAt?: string;
 }
 
 export interface AdminUser {
